@@ -1,7 +1,48 @@
 #include <iostream>
 #include <vector>
 #include <fstream>
-//#include <array>
+#include <string>
+
+void keepLastMeasurement(const std::string& fileName) 
+{
+    std::vector<double> tempData = { };
+
+    double value;
+
+    std::ifstream in(fileName);
+    if (!in) {
+        std::cerr << "Greska prilikom otvaranja." << '\n';
+        return;
+    }
+
+    while (in >> value) {
+        tempData.push_back(value);
+    }
+
+    in.close();
+
+    if (tempData.empty()) {
+        std::cout << "Datoteka nema mjerenja." << '\n';
+        return;
+    }
+
+    double lastValue;
+    lastValue = tempData.back();
+
+    std::ofstream out(fileName, std::ios::trunc);
+
+    if (!out) {
+        std::cerr << "Greska prilikom otvaranja datoteke za pisanje." << '\n';
+        return;
+    }
+
+    out << lastValue;
+
+    out.close();
+    std::cout << "Zadrzano je samo zadnje mjerenje u datoteci." << '\n';
+
+}
+
 int main()
 {
     double node_sum1 = 0;
@@ -14,11 +55,33 @@ int main()
     double total_avg = 0;
     int total_measurement = 0;
     double temperature;
+
     std::vector<double> sensor_node1{ };
     std::vector<double> sensor_node2{ };
     std::vector<double> sensor_node3{ };
 
-    std::ifstream in1("node1.txt");
+    int option;
+    std::cout << "Odaberite zeljenu opciju." << '\n';
+    std::cout << "1. Obradi postojece podatke" << '\n';
+    std::cout << "2. Obrisi podatke iz cvorova osim zadnjeg." << '\n';
+    std::cout << "Opcija: ";
+    std::cin >> option;
+    std::cout << '\n';
+
+    if (option == 2) {
+        keepLastMeasurement("C:\\mqtt_nodes\\node1.txt");
+        keepLastMeasurement("C:\\mqtt_nodes\\node2.txt");
+        keepLastMeasurement("C:\\mqtt_nodes\\node3.txt");
+
+        std::cout << "Datoteke su ociscene. Preostalo je samo zadnje mjerenje." << '\n';
+        return 0;
+    }
+    else if (option != 1) {
+        std::cout << "Neispravan odabir." << '\n';
+        return 0;
+    }
+
+    std::ifstream in1("C:\\mqtt_nodes\\node1.txt");
     if (!in1) {
         std::cerr << "Failed to open node1.txt" << '\n';
         return 1;
@@ -28,7 +91,7 @@ int main()
         sensor_node1.push_back(temperature);
     }
 
-    std::ifstream in2("node2.txt");
+    std::ifstream in2("C:\\mqtt_nodes\\node2.txt");
     if (!in2) {
         std::cerr << "Failed to open node2.txt" << '\n';
         return 1;
@@ -38,7 +101,7 @@ int main()
         sensor_node2.push_back(temperature);
     }
 
-    std::ifstream in3("node3.txt");
+    std::ifstream in3("C:\\mqtt_nodes\\node3.txt");
     if (!in3) {
         std::cerr << "Failed to open node3.txt" << '\n';
         return 1;
@@ -52,64 +115,8 @@ int main()
     double low_limit = 18.0;
     double high_limit = 28.0;
 
-    int node_choice;
-    double new_temp;
 
     std::cout << "Simulacija distribuiranog sustava za obradu senzorskih podataka" << '\n';
-    std::cout << '\n';
-
-    std::cout << "Unesi broj zeljenog cvora: ";
-    std::cin >> node_choice;
-
-    if (node_choice == 1) {
-        std::cout << "Unesi zeljenu temperaturu: ";
-        std::cin >> new_temp;
-
-        sensor_node1.push_back(new_temp);
-
-        std::ofstream out1("node1.txt", std::ios::app);
-        out1 << " " << new_temp;
-
-        std::cout << "Uspjesno dodana nova temperatura. Trenutno stanje cvora 1: " << '\n';
-        for (double values : sensor_node1) {
-            std::cout << values << " ";
-        }
-        std::cout << '\n';
-    }
-    else if (node_choice == 2) {
-        std::cout << "Unesi zeljenu temperaturu: ";
-        std::cin >> new_temp;
-
-        sensor_node2.push_back(new_temp);
-
-        std::ofstream out2("node2.txt", std::ios::app);
-        out2 << " " << new_temp;
-
-        std::cout << "Uspjesno dodana nova temperatura. Trenutno stanje cvora 2: " << '\n';
-        for (double values : sensor_node2) {
-            std::cout << values << " ";
-        }
-        std::cout << '\n';
-    }
-    else if (node_choice == 3) {
-        std::cout << "Unesi zeljenu temperaturu: ";
-        std::cin >> new_temp;
-
-        sensor_node3.push_back(new_temp);
-
-        std::ofstream out3("node3.txt", std::ios::app);
-        out3 << " " << new_temp;
-
-        std::cout << "Uspjesno dodana nova temperatura. Trenutno stanje cvora 3: " << '\n';
-        for (double values : sensor_node3) {
-            std::cout << values << " ";
-        }
-        std::cout << '\n';
-    }
-    else {
-        std::cout << "Nepostojeci broj cvora." << '\n';
-        return 0;
-    }
     std::cout << '\n';
 
     double min_temp1 = sensor_node1[0];
