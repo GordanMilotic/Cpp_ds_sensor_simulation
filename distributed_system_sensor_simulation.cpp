@@ -22,7 +22,7 @@ void keepLastMeasurement(const std::string& fileName)
     in.close();
 
     if (tempData.empty()) {
-        std::cout << "Datoteka nema mjerenja." << '\n';
+        std::cout << "Datoteka " << fileName << " nema mjerenja." << '\n';
         return;
     }
 
@@ -45,225 +45,201 @@ void keepLastMeasurement(const std::string& fileName)
 
 int main()
 {
-    double node_sum1 = 0;
-    double node_sum2 = 0;
-    double node_sum3 = 0;
-    double node_avg1 = 0;
-    double node_avg2 = 0;
-    double node_avg3 = 0;
-    double total_sum = 0;
-    double total_avg = 0;
-    int total_measurement = 0;
+    int numberOfNodes;
     double temperature;
 
-    std::vector<double> sensor_node1{ };
-    std::vector<double> sensor_node2{ };
-    std::vector<double> sensor_node3{ };
+    std::vector<std::string> mqttFiles;
+    std::string mqttFolder = "C:\\mqtt_nodes\\";
 
-    int option;
-    std::cout << "Odaberite zeljenu opciju." << '\n';
-    std::cout << "1. Obradi postojece podatke" << '\n';
-    std::cout << "2. Obrisi podatke iz cvorova osim zadnjeg." << '\n';
-    std::cout << "Opcija: ";
-    std::cin >> option;
+    std::cout << "Unesite zeljeni broj cvorova: ";
+    std::cin >> numberOfNodes;
     std::cout << '\n';
 
-    if (option == 2) {
-        keepLastMeasurement("C:\\mqtt_nodes\\node1.txt");
-        keepLastMeasurement("C:\\mqtt_nodes\\node2.txt");
-        keepLastMeasurement("C:\\mqtt_nodes\\node3.txt");
-
-        std::cout << "Datoteke su ociscene. Preostalo je samo zadnje mjerenje." << '\n';
-        return 0;
-    }
-    else if (option != 1) {
-        std::cout << "Neispravan odabir." << '\n';
+    if (numberOfNodes <= 0) {
+        std::cout << "Greska prilikom kreiranja cvorova, minimalan broj cvorova je 1." << '\n';
         return 0;
     }
 
-    std::ifstream in1("C:\\mqtt_nodes\\node1.txt");
-    if (!in1) {
-        std::cerr << "Failed to open node1.txt" << '\n';
-        return 1;
+    for (int i = 1; i <= numberOfNodes; i++) {
+        std::string nodeFileName = mqttFolder + "node" + std::to_string(i) + ".txt";
+        mqttFiles.push_back(nodeFileName);
     }
 
-    while (in1 >> temperature) {
-        sensor_node1.push_back(temperature);
+    // std::vector<std::vector<double>> sensor_nodes(mqttFiles.size()); //mapiranje u jedan vector, velicina ovisi o mqttfiles vectoru
+
+    for (int i = 0; i < mqttFiles.size(); i++) {
+        std::ifstream in(mqttFiles[i]);
+
+        if (!in) {
+            std::cerr << "Datoteka ne postoji: " << mqttFiles[i] << '\n';
+            std::ofstream out(mqttFiles[i], std::ios::trunc);
+
+            if (!out) {
+                std::cerr << "Greska, datoteku nije moguce kreirati." << '\n';
+                return 1;
+            }
+
+            std::cout << "Datoteka " << mqttFiles[i] << " je uspjesno kreirana." << '\n';
+        }  
     }
-
-    std::ifstream in2("C:\\mqtt_nodes\\node2.txt");
-    if (!in2) {
-        std::cerr << "Failed to open node2.txt" << '\n';
-        return 1;
-    }
-
-    while (in2 >> temperature) {
-        sensor_node2.push_back(temperature);
-    }
-
-    std::ifstream in3("C:\\mqtt_nodes\\node3.txt");
-    if (!in3) {
-        std::cerr << "Failed to open node3.txt" << '\n';
-        return 1;
-    }
-
-    while (in3 >> temperature) {
-        sensor_node3.push_back(temperature);
-    }
-    
-
-    double low_limit = 18.0;
-    double high_limit = 28.0;
-
 
     std::cout << "Simulacija distribuiranog sustava za obradu senzorskih podataka" << '\n';
     std::cout << '\n';
 
-    double min_temp1 = sensor_node1[0];
-    double min_temp2 = sensor_node2[0];
-    double min_temp3 = sensor_node3[0];
-    double max_temp1 = sensor_node1[0];
-    double max_temp2 = sensor_node2[0];
-    double max_temp3 = sensor_node3[0];
+    while (true) {
 
-    std::cout << "Cvor 1: ";
+        std::vector<double> node_sums;
+        std::vector<double> node_avg;
 
-    for (double values : sensor_node1) {
-        std::cout << values << " ";
-    }
-    std::cout << '\n';
+        double low_limit = 18.0;
+        double high_limit = 28.0;
+        double total_sum = 0;
+        double total_avg = 0;
+        int total_measurement = 0;
+        int option;
 
-    std::cout << "Cvor 2: ";
+        std::cout << "Odaberite zeljenu opciju." << '\n';
+        std::cout << "1. Obradi postojece podatke" << '\n';
+        std::cout << "2. Zadrzi samo zadnje mjerenje svakog cvora." << '\n';
+        std::cout << "3. Izlaz iz programa." << '\n';
+        std::cout << "Opcija: ";
+        std::cin >> option;
+        std::cout << '\n';
 
-    for (double values : sensor_node2) {
-        std::cout << values << " ";
-    }
-    std::cout << '\n';
+        if (option == 1) {
+            std::vector<std::vector<double>> sensor_nodes(mqttFiles.size());
 
-    std::cout << "Cvor 3: ";
+            for (int i = 0; i < mqttFiles.size(); i++) { //zajednicko otvaranje datoteke
+                std::ifstream in(mqttFiles[i]);
 
-    for (double values : sensor_node3) {
-        std::cout << values << " ";
-    }
-    std::cout << '\n';
-    std::cout << '\n';
+                if (!in) {
+                    std::cerr << "Greska prilikom otvaranja datoteke: " << mqttFiles[i] << '\n';
+                    return 1;
+                }
 
-    for (double values : sensor_node1) {
-        node_sum1 += values;
-    }
-    std::cout << "Suma temperatura 1. cvora: " << node_sum1 << '\n';
+                while (in >> temperature) {
+                    sensor_nodes[i].push_back(temperature);
+                }
+            }
 
-    for (double values : sensor_node2) {
-        node_sum2 += values;
-    }
-    std::cout << "Suma temperatura 2. cvora: " << node_sum2 << '\n';
+            bool validData = true;
+            //provjera cvora za kolicinu podataka
+            for (int i = 0; i < sensor_nodes.size(); i++) {
+                if (sensor_nodes[i].empty()) {
+                    std::cout << "Cvor " << i+1 << " je prazan." << '\n';
+                    validData = false;
+                }
+            }
 
-    for (double values : sensor_node3) {
-        node_sum3 += values;
-    }
-    std::cout << "Suma temperatura 3. cvora: " << node_sum3 << '\n';
-    std::cout << '\n';
+            if (validData != true) {
+                std::cout << "Obrada nije moguca. Cvorovi moraju imati barem jendo mjerneje." << '\n';
+                continue;
+            }
+            std::cout << '\n';
 
-    node_avg1 = node_sum1 / sensor_node1.size();
-    std::cout << "Prosjek temperatura 1. cvora: " << node_avg1 << '\n';
+            for (int i = 0; i < sensor_nodes.size(); i++) { //ispis pojedinih vrijednosti cvorova
+                std::cout << "Vrijednost cvora " << i + 1 << ": ";
+                for (double value : sensor_nodes[i]) {
+                    std::cout << value << " ";
+                }
+                std::cout << '\n';
+            }
 
-    node_avg2 = node_sum2 / sensor_node2.size();
-    std::cout << "Prosjek temperatura 2. cvora: " << node_avg2 << '\n';
+            std::cout << '\n';
 
-    node_avg3 = node_sum3 / sensor_node3.size();
-    std::cout << "Prosjek temperatura 3. cvora: " << node_avg3 << '\n';
-    std::cout << '\n';
+            for (int i = 0; i < sensor_nodes.size(); i++) {
+                double current_node_sum = 0;
 
-    total_sum = node_sum1 + node_sum2 + node_sum3;
-    std::cout << "Ukupna suma temperatura svih cvorova: " << total_sum << '\n';
+                for (double values : sensor_nodes[i]) {
+                    current_node_sum += values;
+                }
 
-    total_measurement = sensor_node1.size() + sensor_node2.size() + sensor_node3.size();
-    std::cout << "Ukupan broj mjerenja: " << total_measurement << '\n';
+                node_sums.push_back(current_node_sum);
 
-    total_avg = total_sum / total_measurement;
-    std::cout << "Ukupan prosjek svih cvorova: " << total_avg << '\n';
-    std::cout << '\n';
+                double current_node_avg = current_node_sum / sensor_nodes[i].size();
+                node_avg.push_back(current_node_avg);
+            }
+            //suma i prosjek
+            for (int i = 0; i < sensor_nodes.size(); i++) {
+                std::cout << "Suma temperatura " << i + 1 << ". cvora: " << node_sums[i] << '\n';
+                std::cout << "Prosjek temperatura " << i + 1 << ". cvora: " << node_avg[i] << '\n';
+            }
 
-    for (double values : sensor_node1) {
-        if (values < min_temp1) {
-            min_temp1 = values;
+            std::cout << '\n';
+
+            for (int i = 0; i < sensor_nodes.size(); i++) {
+                total_sum += node_sums[i];
+                total_measurement += sensor_nodes[i].size();
+            }
+
+            total_avg = total_sum / total_measurement;
+
+            std::cout << "Ukupna suma temperatur svih cvorova: " << total_sum << '\n';
+            std::cout << "Ukupan broj svih mjerenja: " << total_measurement << '\n';
+            std::cout << "Ukupan prosjek svih mjerenja: " << total_avg << '\n';
+
+            std::cout << '\n';
+
+            std::vector<double> min_temps;
+            std::vector<double> max_temps;
+
+            for (int i = 0; i < sensor_nodes.size(); i++) {
+                double current_min = sensor_nodes[i][0];
+                double current_max = sensor_nodes[i][0];
+
+                for (double values : sensor_nodes[i]) {
+
+                    if (values < current_min) {
+                        current_min = values;
+                    }
+
+                    if (values > current_max) {
+                        current_max = values;
+                    }
+                }
+
+                min_temps.push_back(current_min);
+                max_temps.push_back(current_max);
+            }
+            //minimum i maximum
+            for (int i = 0; i < sensor_nodes.size(); i++) {
+                std::cout << "Najmanja temperatura " << i + 1 << ". cvora: " << min_temps[i] << '\n';
+                std::cout << "Najveca temperatura " << i + 1 << ". cvora: " << max_temps[i] << '\n';
+            }
+
+            std::cout << '\n';
+            //upozorenje za niske i visoke temp
+            for (int i = 0; i < sensor_nodes.size(); i++) {
+                for (double values : sensor_nodes[i]) {
+                    if (values < low_limit) {
+                        std::cout << "Upozorenje, niska temperatura u " << i + 1
+                            << ". cvoru: " << values << " C" << '\n';
+                    }
+                    else if (values > high_limit) {
+                        std::cout << "Upozorenje, visoka temperatura u " << i + 1
+                            << ". cvoru: " << values << " C" << '\n';
+                    }
+                }
+            }
+            std::cout << "-------------------------------------------------------------" << '\n';
         }
+
+        else if (option == 2) {
+            for (int i = 0; i < mqttFiles.size(); i++) {
+                keepLastMeasurement(mqttFiles[i]);
+            }
+
+            std::cout << "Postupak je zavrsen." << '\n';
+        }
+        else if (option == 3) {
+            std::cout << "Izlaz iz programa." << '\n';
+            break;
+        }
+        else {
+            std::cout << "Neispravan odabir." << '\n';
+        }
+        std::cout << '\n';
     }
-
-    std::cout << "Najmanja temperatura 1. cvora: " << min_temp1 << '\n';
-
-    for (double values : sensor_node2) {
-        if (values < min_temp2) {
-            min_temp2 = values;
-        }
-    }
-    std::cout << "Najmanja temperatura 2. cvora: " << min_temp2 << '\n';
-
-    for (double values : sensor_node3) {
-        if (values < min_temp3) {
-            min_temp3 = values;
-        }
-    }
-    std::cout << "Najmanja temperatura 3. cvora je: " << min_temp3 << '\n';
-    std::cout << '\n';
-
-    for (double values : sensor_node1) {
-        if (values > max_temp1) {
-            max_temp1 = values;
-        }
-    }
-    std::cout << "Najveca temperatura 1. cvora je: " << max_temp1 << '\n';
-
-    for (double values : sensor_node2) {
-        if (values > max_temp2) {
-            max_temp2 = values;
-        }
-    }
-    std::cout << "Najveca temperatura 2. cvora je: " << max_temp2 << '\n';
-
-    for (double values : sensor_node3) {
-        if (values > max_temp3) {
-            max_temp3 = values;
-        }
-    }
-    std::cout << "Najveca temperatura 3. cvora je: " << max_temp3 << '\n';
-    std::cout << '\n';
-
-    for (double values : sensor_node1) {
-        if (values < low_limit) {
-            std::cout << "Upozorenje za nisku temperaturu u 1. cvoru: " << values 
-                      << " (Min temp: " << low_limit << " C)" << '\n';
-        }
-        else if (values > high_limit) {
-            std::cout << "Upozorenje za visoku temperaturu u 1. cvoru: " << values 
-                      << " (Max temp: " << high_limit << " C)" << '\n';
-        }
-    }
-
-    for (double values : sensor_node2) {
-        if (values < low_limit) {
-            std::cout << "Upozorenje za nisku temperaturu u 2. cvoru: " << values 
-                      << " (Min temp: " << low_limit << " C)" << '\n';
-        }
-        else if (values > high_limit) {
-            std::cout << "Upozorenje za visoku temperaturu u 2. cvoru: " << values 
-                      << " (Max temp: " << high_limit << " C)" << '\n';
-        }
-    }
-
-    for (double values : sensor_node3) {
-        if (values < low_limit) {
-            std::cout << "Upozorenje za nisku temperaturu u 3. cvoru: " << values
-                << " (Min temp: " << low_limit << " C)" << '\n';
-        }
-        else if (values > high_limit) {
-            std::cout << "Upozorenje za visoku temperaturu u 3. cvoru: " << values
-                << " (Max temp: " << high_limit << " C)" << '\n';
-        }
-    }
-    std::cout << '\n';
-
-    
 
     return 0;
 }
